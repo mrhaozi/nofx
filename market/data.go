@@ -10,8 +10,13 @@ import (
 	"strings"
 )
 
+// ExtraData 包含K线等详细数据，用于更深度的技术分析
+type ExtraData struct {
+	LatestKline3m Kline
+}
+
 // Get 获取指定代币的市场数据
-func Get(symbol string) (*Data, error) {
+func Get(symbol string) (*Data, *ExtraData, error) {
 	var klines3m, klines4h []Kline
 	var err error
 	// 标准化symbol
@@ -19,13 +24,13 @@ func Get(symbol string) (*Data, error) {
 	// 获取3分钟K线数据 (最近10个)
 	klines3m, err = WSMonitorCli.GetCurrentKlines(symbol, "3m") // 多获取一些用于计算
 	if err != nil {
-		return nil, fmt.Errorf("获取3分钟K线失败: %v", err)
+		return nil, nil, fmt.Errorf("获取3分钟K线失败: %v", err)
 	}
 
 	// 获取4小时K线数据 (最近10个)
 	klines4h, err = WSMonitorCli.GetCurrentKlines(symbol, "4h") // 多获取用于计算指标
 	if err != nil {
-		return nil, fmt.Errorf("获取4小时K线失败: %v", err)
+		return nil, nil, fmt.Errorf("获取4小时K线失败: %v", err)
 	}
 
 	// 计算当前指标 (基于3分钟最新数据)
@@ -69,7 +74,12 @@ func Get(symbol string) (*Data, error) {
 	// 计算长期数据
 	longerTermData := calculateLongerTermData(klines4h)
 
-	return &Data{
+	// 准备ExtraData
+	extraData := &ExtraData{
+		LatestKline3m: klines3m[len(klines3m)-1],
+	}
+
+	data := &Data{
 		Symbol:            symbol,
 		CurrentPrice:      currentPrice,
 		PriceChange1h:     priceChange1h,
@@ -81,7 +91,9 @@ func Get(symbol string) (*Data, error) {
 		FundingRate:       fundingRate,
 		IntradaySeries:    intradayData,
 		LongerTermContext: longerTermData,
-	}, nil
+	}
+
+	return data, extraData, nil
 }
 
 // calculateEMA 计算EMA
