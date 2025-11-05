@@ -585,16 +585,32 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 // executeDecisionWithRecord 执行AI决策并记录详细信息
 func (at *AutoTrader) executeDecisionWithRecord(decision *decision.Decision, actionRecord *logger.DecisionAction) error {
 	switch decision.Action {
-	case "open_long":
+	case "buy_to_enter":
 		return at.executeOpenLongWithRecord(decision, actionRecord)
-	case "open_short":
+	case "sell_to_enter":
 		return at.executeOpenShortWithRecord(decision, actionRecord)
-	case "close_long":
-		return at.executeCloseLongWithRecord(decision, actionRecord)
-	case "close_short":
-		return at.executeCloseShortWithRecord(decision, actionRecord)
+	case "close":
+		// 需要判断是平多还是平空
+		positions, err := at.trader.GetPositions()
+		if err != nil {
+			return fmt.Errorf("获取持仓失败: %w", err)
+		}
+		for _, pos := range positions {
+			if pos["symbol"] == decision.Symbol {
+				side := pos["side"].(string)
+				if side == "long" {
+					return at.executeCloseLongWithRecord(decision, actionRecord)
+				} else if side == "short" {
+					return at.executeCloseShortWithRecord(decision, actionRecord)
+				}
+			}
+		}
+		return fmt.Errorf("没有找到 %s 的持仓来平仓", decision.Symbol)
 	case "hold", "wait":
 		// 无需执行，仅记录
+		return nil
+	case "update_stop_loss", "update_take_profit", "partial_close":
+		log.Printf("  ℹ️  Action '%s' for %s 尚未实现。", decision.Action, decision.Symbol)
 		return nil
 	default:
 		return fmt.Errorf("未知的action: %s", decision.Action)
@@ -610,19 +626,22 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 	if err == nil {
 		for _, pos := range positions {
 			if pos["symbol"] == decision.Symbol && pos["side"] == "long" {
-				return fmt.Errorf("❌ %s 已有多仓，拒绝开仓以防止仓位叠加超限。如需换仓，请先给出 close_long 决策", decision.Symbol)
+				return fmt.Errorf("❌ %s 已有多仓，拒绝开仓以防止仓位叠加超限。如需换仓，请先给出 close 决策", decision.Symbol)
 			}
 		}
 	}
 
 	// 获取当前价格
-	marketData, err := market.Get(decision.Symbol)
+	marketData, _, err := market.Get(decision.Symbol)
 	if err != nil {
 		return err
 	}
 
-	// 计算数量
-	quantity := decision.PositionSizeUSD / marketData.CurrentPrice
+	// 计算数量: quantity = risk_usd / abs(entry_price - stop_loss)
+	if marketData.CurrentPrice <= decision.StopLoss {
+		return fmt.Errorf("止损价格 %.4f 必须低于当前价格 %.4f", decision.StopLoss, marketData.CurrentPrice)
+	}
+	quantity := decision.RiskUSD / (marketData.CurrentPrice - decision.StopLoss)
 	actionRecord.Quantity = quantity
 	actionRecord.Price = marketData.CurrentPrice
 
@@ -669,19 +688,22 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 	if err == nil {
 		for _, pos := range positions {
 			if pos["symbol"] == decision.Symbol && pos["side"] == "short" {
-				return fmt.Errorf("❌ %s 已有空仓，拒绝开仓以防止仓位叠加超限。如需换仓，请先给出 close_short 决策", decision.Symbol)
+				return fmt.Errorf("❌ %s 已有空仓，拒绝开仓以防止仓位叠加超限。如需换仓，请先给出 close 决策", decision.Symbol)
 			}
 		}
 	}
 
 	// 获取当前价格
-	marketData, err := market.Get(decision.Symbol)
+	marketData, _, err := market.Get(decision.Symbol)
 	if err != nil {
 		return err
 	}
 
-	// 计算数量
-	quantity := decision.PositionSizeUSD / marketData.CurrentPrice
+	// 计算数量: quantity = risk_usd / abs(stop_loss - entry_price)
+	if marketData.CurrentPrice >= decision.StopLoss {
+		return fmt.Errorf("止损价格 %.4f 必须高于当前价格 %.4f", decision.StopLoss, marketData.CurrentPrice)
+	}
+	quantity := decision.RiskUSD / (decision.StopLoss - marketData.CurrentPrice)
 	actionRecord.Quantity = quantity
 	actionRecord.Price = marketData.CurrentPrice
 
@@ -724,7 +746,7 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, ac
 	log.Printf("  🔄 平多仓: %s", decision.Symbol)
 
 	// 获取当前价格
-	marketData, err := market.Get(decision.Symbol)
+	marketData, _, err := market.Get(decision.Symbol)
 	if err != nil {
 		return err
 	}
@@ -750,7 +772,7 @@ func (at *AutoTrader) executeCloseShortWithRecord(decision *decision.Decision, a
 	log.Printf("  🔄 平空仓: %s", decision.Symbol)
 
 	// 获取当前价格
-	marketData, err := market.Get(decision.Symbol)
+	marketData, _, err := market.Get(decision.Symbol)
 	if err != nil {
 		return err
 	}
