@@ -12,7 +12,7 @@
 
 **📚 Documentation:** [Docs Home](docs/README.md) | [Getting Started](docs/getting-started/README.md) | [Changelog](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md)
 
----
+------
 
 ## 📑 Table of Contents
 
