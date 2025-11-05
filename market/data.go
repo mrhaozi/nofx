@@ -269,13 +269,14 @@ func calculateLongerTermData(klines []Kline) *LongerTermData {
 		data.AverageVolume = sum / float64(len(klines))
 	}
 
-	// 计算MACD和RSI序列
+	// 计算MACD和RSI序列（确保有足够的数据点）
 	start := len(klines) - 10
 	if start < 0 {
 		start = 0
 	}
 
 	for i := start; i < len(klines); i++ {
+		// 确保有足够的K线数据来计算指标
 		if i >= 25 {
 			macd := calculateMACD(klines[:i+1])
 			data.MACDValues = append(data.MACDValues, macd)
@@ -284,6 +285,15 @@ func calculateLongerTermData(klines []Kline) *LongerTermData {
 			rsi14 := calculateRSI(klines[:i+1], 14)
 			data.RSI14Values = append(data.RSI14Values, rsi14)
 		}
+	}
+
+	// 如果数据不足，用最新值填充
+	for len(data.MACDValues) < 10 && len(klines) > 25 {
+		data.MACDValues = append(data.MACDValues, calculateMACD(klines))
+	}
+	
+	for len(data.RSI14Values) < 10 && len(klines) > 14 {
+		data.RSI14Values = append(data.RSI14Values, calculateRSI(klines, 14))
 	}
 
 	return data
