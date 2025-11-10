@@ -13,6 +13,7 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { t, type Language } from './i18n/translations';
 import { useSystemConfig } from './hooks/useSystemConfig';
+import TestPromptPage from './pages/TestPromptPage';
 import type {
   SystemStatus,
   AccountInfo,
@@ -22,7 +23,7 @@ import type {
   TraderInfo,
 } from './types';
 
-type Page = 'competition' | 'traders' | 'trader';
+type Page = 'competition' | 'traders' | 'trader' | 'test-prompt';
 
 // 获取友好的AI模型名称
 function getModelDisplayName(modelId: string): string {
@@ -48,9 +49,10 @@ function App() {
   const getInitialPage = (): Page => {
     const path = window.location.pathname;
     const hash = window.location.hash.slice(1); // 去掉 #
-    
+
     if (path === '/traders' || hash === 'traders') return 'traders';
     if (path === '/dashboard' || hash === 'trader' || hash === 'details') return 'trader';
+    if (path === '/test-prompt') return 'test-prompt';
     return 'competition'; // 默认为竞赛页面
   };
 
@@ -63,11 +65,13 @@ function App() {
     const handleRouteChange = () => {
       const path = window.location.pathname;
       const hash = window.location.hash.slice(1);
-      
+
       if (path === '/traders' || hash === 'traders') {
         setCurrentPage('traders');
       } else if (path === '/dashboard' || hash === 'trader' || hash === 'details') {
         setCurrentPage('trader');
+      } else if (path === '/test-prompt') {
+        setCurrentPage('test-prompt');
       } else if (path === '/competition' || hash === 'competition' || hash === '') {
         setCurrentPage('competition');
       }
@@ -213,12 +217,49 @@ function App() {
   if (route === '/register') {
     return <RegisterPage />;
   }
+  if (route === '/test-prompt') {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <HeaderBar
+          isLoggedIn={!!user}
+          currentPage="test-prompt"
+          language={language}
+          onLanguageChange={setLanguage}
+          user={user}
+          onLogout={logout}
+          isAdminMode={systemConfig?.admin_mode}
+          onPageChange={(page) => {
+            if (page === 'competition') {
+              window.history.pushState({}, '', '/competition');
+              setRoute('/competition');
+              setCurrentPage('competition');
+            } else if (page === 'traders') {
+              window.history.pushState({}, '', '/traders');
+              setRoute('/traders');
+              setCurrentPage('traders');
+            } else if (page === 'trader') {
+              window.history.pushState({}, '', '/dashboard');
+              setRoute('/dashboard');
+              setCurrentPage('trader');
+            } else if (page === 'test-prompt') {
+              window.history.pushState({}, '', '/test-prompt');
+              setRoute('/test-prompt');
+              setCurrentPage('test-prompt');
+            }
+          }}
+        />
+        <main className="max-w-[1920px] mx-auto px-6 py-6 pt-24">
+          <TestPromptPage />
+        </main>
+      </div>
+    );
+  }
   if (route === '/competition') {
     return (
       <div className="min-h-screen" style={{ background: '#000000', color: '#EAECEF' }}>
-        <HeaderBar 
- 
-          isLoggedIn={!!user} 
+        <HeaderBar
+
+          isLoggedIn={!!user}
           currentPage="competition"
           language={language}
           onLanguageChange={setLanguage}
@@ -228,7 +269,7 @@ function App() {
           onPageChange={(page) => {
             console.log('Competition page onPageChange called with:', page);
             console.log('Current route:', route, 'Current page:', currentPage);
-            
+
             if (page === 'competition') {
               console.log('Navigating to competition');
               window.history.pushState({}, '', '/competition');
@@ -245,7 +286,7 @@ function App() {
               setRoute('/dashboard');
               setCurrentPage('trader');
             }
-            
+
             console.log('After navigation - route:', route, 'currentPage:', currentPage);
           }}
         />
@@ -279,7 +320,7 @@ function App() {
         isAdminMode={systemConfig?.admin_mode}
         onPageChange={(page) => {
           console.log('Main app onPageChange called with:', page);
-          
+
           if (page === 'competition') {
             window.history.pushState({}, '', '/competition');
             setRoute('/competition');
@@ -292,6 +333,10 @@ function App() {
             window.history.pushState({}, '', '/dashboard');
             setRoute('/dashboard');
             setCurrentPage('trader');
+          } else if (page === 'test-prompt') {
+            window.history.pushState({}, '', '/test-prompt');
+            setRoute('/test-prompt');
+            setCurrentPage('test-prompt');
           }
         }}
       />
@@ -301,7 +346,7 @@ function App() {
         {currentPage === 'competition' ? (
           <CompetitionPage />
         ) : currentPage === 'traders' ? (
-          <AITradersPage 
+          <AITradersPage
             onTraderSelect={(traderId) => {
               setSelectedTraderId(traderId);
               window.history.pushState({}, '', '/dashboard');
@@ -309,6 +354,8 @@ function App() {
               setCurrentPage('trader');
             }}
           />
+        ) : currentPage === 'test-prompt' ? (
+          <TestPromptPage />
         ) : (
           <TraderDetailsPage
             selectedTrader={selectedTrader}

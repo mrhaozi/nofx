@@ -11,6 +11,8 @@ import type {
   UpdateModelConfigRequest,
   UpdateExchangeConfigRequest,
   CompetitionData,
+  UserPromptData,
+  AIDecisionData,
 } from '../types';
 
 const API_BASE = '/api';
@@ -312,5 +314,48 @@ export const api = {
       }),
     });
     if (!res.ok) throw new Error('保存用户信号源配置失败');
+  },
+
+  // UserPrompt测试相关接口
+  async generateUserPrompt(symbol: string, traderId: string): Promise<UserPromptData> {
+    const res = await fetch(`${API_BASE}/ai-test/generate-prompt`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ symbol, trader_id: traderId }),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || '生成UserPrompt失败');
+    }
+
+    const data = await res.json();
+    return data.data;
+  },
+
+  async testAIDecision(symbol: string, userPrompt: string, traderId: string, systemPrompt?: string, templateName?: string): Promise<AIDecisionData> {
+    const res = await fetch(`${API_BASE}/ai-test/get-decision`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        symbol,
+        user_prompt: userPrompt,
+        trader_id: traderId,
+        system_prompt: systemPrompt,
+        template_name: templateName,
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || '获取AI决策失败');
+    }
+
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || 'AI决策解析失败');
+    }
+
+    return data.data;
   },
 };

@@ -161,7 +161,7 @@ export default function HeaderBar({ isLoggedIn = false, isHomePage = false, curr
                   >
                     {/* Background for selected state */}
                     {currentPage === 'trader' && (
-                      <span 
+                      <span
                         className="absolute inset-0 rounded-lg"
                         style={{
                           background: 'rgba(240, 185, 11, 0.15)',
@@ -169,8 +169,45 @@ export default function HeaderBar({ isLoggedIn = false, isHomePage = false, curr
                         }}
                       />
                     )}
-                    
+
                     {t('dashboardNav', language)}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      console.log('UserPrompt测试 button clicked, onPageChange:', onPageChange);
+                      onPageChange?.('test-prompt');
+                    }}
+                    className='text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500'
+                    style={{
+                      color: currentPage === 'test-prompt' ? 'var(--brand-yellow)' : 'var(--brand-light-gray)',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (currentPage !== 'test-prompt') {
+                        e.currentTarget.style.color = 'var(--brand-yellow)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (currentPage !== 'test-prompt') {
+                        e.currentTarget.style.color = 'var(--brand-light-gray)';
+                      }
+                    }}
+                  >
+                    {/* Background for selected state */}
+                    {currentPage === 'test-prompt' && (
+                      <span
+                        className="absolute inset-0 rounded-lg"
+                        style={{
+                          background: 'rgba(240, 185, 11, 0.15)',
+                          zIndex: -1
+                        }}
+                      />
+                    )}
+
+                    UserPrompt测试
                   </button>
                 </>
               ) : (
