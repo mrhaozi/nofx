@@ -12,31 +12,7 @@
 
 **📚 Documentation:** [Docs Home](docs/README.md) | [Getting Started](docs/getting-started/README.md) | [Changelog](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md)
 
----
 
-## 📑 Table of Contents
-
-- [🚀 Universal AI Trading Operating System](#-universal-ai-trading-operating-system)
-- [👥 Developer Community](#-developer-community)
-- [🆕 What's New](#-whats-new-latest-update)
-- [📸 Screenshots](#-screenshots)
-- [✨ Current Implementation](#-current-implementation---crypto-markets)
-- [🔮 Roadmap](#-roadmap---universal-market-expansion)
-- [🏗️ Technical Architecture](#️-technical-architecture)
-- [💰 Register Binance Account](#-register-binance-account-save-on-fees)
-- [🚀 Quick Start](#-quick-start)
-- [📖 AI Decision Flow](#-ai-decision-flow)
-- [🧠 AI Self-Learning](#-ai-self-learning-example)
-- [📊 Web Interface Features](#-web-interface-features)
-- [🎛️ API Endpoints](#️-api-endpoints)
-- [⚠️ Important Risk Warnings](#️-important-risk-warnings)
-- [🛠️ Common Issues](#️-common-issues)
-- [📈 Performance Tips](#-performance-optimization-tips)
-- [🔄 Changelog](#-changelog)
-- [📄 License](#-license)
-- [🤝 Contributing](#-contributing)
-
----
 
 ## 🚀 Universal AI Trading Operating System
 
