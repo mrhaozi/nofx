@@ -25,6 +25,7 @@ interface TraderConfigData {
   use_oi_top: boolean;
   initial_balance: number;
   scan_interval_minutes: number;
+  binance_proxy_url?: string;
 }
 
 interface TraderConfigModalProps {
@@ -62,6 +63,7 @@ export function TraderConfigModal({
     use_oi_top: false,
     initial_balance: 1000,
     scan_interval_minutes: 3,
+    binance_proxy_url: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [availableCoins, setAvailableCoins] = useState<string[]>([]);
@@ -93,6 +95,7 @@ export function TraderConfigModal({
         use_oi_top: false,
         initial_balance: 1000,
         scan_interval_minutes: 3,
+        binance_proxy_url: '',
       });
     }
     // 确保旧数据也有默认的 system_prompt_template
@@ -188,6 +191,7 @@ export function TraderConfigModal({
         use_oi_top: formData.use_oi_top,
         initial_balance: formData.initial_balance,
         scan_interval_minutes: formData.scan_interval_minutes,
+        binance_proxy_url: formData.binance_proxy_url,
       };
       await onSave(saveData);
       onClose();
@@ -275,6 +279,21 @@ export function TraderConfigModal({
                   </select>
                 </div>
               </div>
+
+              {/* 币安代理URL - 仅在选择了币安交易所时显示 */}
+              {formData.exchange_id && availableExchanges.find(ex => ex.id === formData.exchange_id)?.name?.toLowerCase().includes('binance') && (
+                <div className="mt-4">
+                  <label className="text-sm text-[#EAECEF] block mb-2">币安代理URL (可选)</label>
+                  <input
+                    type="text"
+                    value={formData.binance_proxy_url || ''}
+                    onChange={(e) => handleInputChange('binance_proxy_url', e.target.value)}
+                    className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] focus:border-[#F0B90B] focus:outline-none"
+                    placeholder="例如: http://proxy.example.com:8080 (留空表示不使用代理)"
+                  />
+                  <p className="text-xs text-[#848E9C] mt-1">仅在使用币安交易时生效，用于设置HTTP代理</p>
+                </div>
+              )}
             </div>
           </div>
 

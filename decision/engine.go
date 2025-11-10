@@ -369,19 +369,19 @@ func BuildUserPrompt(ctx *Context) string {
 				lastPrice := midPrices[len(midPrices)-1]
 				// 估算OHLC数据（基于实际价格序列）
 				klinesData["3m"] = map[string]float64{
-					"open":  midPrices[0],
-					"high":  maxFloat64(midPrices...),
-					"low":   minFloat64(midPrices...),
-					"close": lastPrice,
+					"open":   midPrices[0],
+					"high":   maxFloat64(midPrices...),
+					"low":    minFloat64(midPrices...),
+					"close":  lastPrice,
 					"volume": 1000.0, // 暂时使用默认值，实际应从K线数据获取
 				}
 			} else {
 				// 如果没有日内数据，使用当前价格估算
 				klinesData["3m"] = map[string]float64{
-					"open":  marketDataItem.CurrentPrice,
-					"high":  marketDataItem.CurrentPrice,
-					"low":   marketDataItem.CurrentPrice,
-					"close": marketDataItem.CurrentPrice,
+					"open":   marketDataItem.CurrentPrice,
+					"high":   marketDataItem.CurrentPrice,
+					"low":    marketDataItem.CurrentPrice,
+					"close":  marketDataItem.CurrentPrice,
 					"volume": 1000.0,
 				}
 			}
@@ -390,18 +390,18 @@ func BuildUserPrompt(ctx *Context) string {
 			if marketDataItem.LongerTermContext != nil {
 				// 基于长期数据估算OHLC
 				klinesData["4h"] = map[string]float64{
-					"open":  marketDataItem.CurrentPrice * 0.995,
-					"high":  marketDataItem.CurrentPrice * 1.015,
-					"low":   marketDataItem.CurrentPrice * 0.985,
-					"close": marketDataItem.CurrentPrice,
+					"open":   marketDataItem.CurrentPrice * 0.995,
+					"high":   marketDataItem.CurrentPrice * 1.015,
+					"low":    marketDataItem.CurrentPrice * 0.985,
+					"close":  marketDataItem.CurrentPrice,
 					"volume": marketDataItem.LongerTermContext.CurrentVolume,
 				}
 			} else {
 				klinesData["4h"] = map[string]float64{
-					"open":  marketDataItem.CurrentPrice * 0.985,
-					"high":  marketDataItem.CurrentPrice * 1.015,
-					"low":   marketDataItem.CurrentPrice * 0.980,
-					"close": marketDataItem.CurrentPrice,
+					"open":   marketDataItem.CurrentPrice * 0.985,
+					"high":   marketDataItem.CurrentPrice * 1.015,
+					"low":    marketDataItem.CurrentPrice * 0.980,
+					"close":  marketDataItem.CurrentPrice,
 					"volume": 80000.0,
 				}
 			}
@@ -485,28 +485,10 @@ func BuildUserPrompt(ctx *Context) string {
 			fibData, err := market.CalculateFibonacciAnalysis(symbol)
 			if err == nil && fibData != nil {
 				symbolData["fibonacci_levels"] = map[string]interface{}{
-					"swing_high": fibData.SwingHigh,
-					"swing_low": fibData.SwingLow,
-					"levels": fibData.Levels,
+					"swing_high":           fibData.SwingHigh,
+					"swing_low":            fibData.SwingLow,
+					"levels":               fibData.Levels,
 					"current_price_vs_fib": fibData.CurrentPriceVsFib,
-				}
-			} else {
-				// 如果斐波那契分析失败，使用基于当前价格的估算
-				swingHigh := marketDataItem.CurrentPrice * 1.15
-				swingLow := marketDataItem.CurrentPrice * 0.85
-				diff := swingHigh - swingLow
-				symbolData["fibonacci_levels"] = map[string]interface{}{
-					"swing_high": swingHigh,
-					"swing_low": swingLow,
-					"levels": map[string]float64{
-						"23.6%": swingHigh - diff*0.236,
-						"38.2%": swingHigh - diff*0.382,
-						"50.0%": swingHigh - diff*0.500,
-						"61.8%": swingHigh - diff*0.618,
-						"70.5%": swingHigh - diff*0.705,
-						"78.6%": swingHigh - diff*0.786,
-					},
-					"current_price_vs_fib": "在OTE区间内",
 				}
 			}
 
@@ -514,39 +496,10 @@ func BuildUserPrompt(ctx *Context) string {
 			wyckoffData, err := market.IdentifyWyckoffSignals(symbol)
 			if err == nil && wyckoffData != nil {
 				symbolData["wyckoff_signals"] = map[string]interface{}{
-					"phase":          wyckoffData.Phase,
+					"phase":           wyckoffData.Phase,
 					"signals_present": wyckoffData.SignalsPresent,
 					"volume_pattern":  wyckoffData.VolumePattern,
 					"price_action":    wyckoffData.PriceAction,
-				}
-			} else {
-				// 如果Wyckoff分析失败，使用基于市场阶段的估算
-				var phase, volumePattern, priceAction string
-				var signals []string
-
-				// 基于价格变化和成交量判断市场阶段
-				if marketDataItem.PriceChange1h > 2.0 {
-					phase = "uptrend"
-					signals = []string{"SOS", "BREAKOUT"}
-					volumePattern = "high_volume"
-					priceAction = "breakout"
-				} else if marketDataItem.PriceChange1h < -2.0 {
-					phase = "downtrend"
-					signals = []string{"SOW", "BREAKDOWN"}
-					volumePattern = "high_volume"
-					priceAction = "breakdown"
-				} else {
-					phase = "consolidation"
-					signals = []string{"TEST", "SPRING"}
-					volumePattern = "normal_volume"
-					priceAction = "consolidation"
-				}
-
-				symbolData["wyckoff_signals"] = map[string]interface{}{
-					"phase":          phase,
-					"signals_present": signals,
-					"volume_pattern":  volumePattern,
-					"price_action":    priceAction,
 				}
 			}
 
@@ -555,42 +508,6 @@ func BuildUserPrompt(ctx *Context) string {
 	}
 
 	promptData["market_data"] = marketData
-
-	// 4. 添加全局斐波那契数据（使用真实市场数据）
-	globalFibonacci := make(map[string]interface{})
-	for symbol := range allSymbols {
-		if marketData, exists := ctx.MarketDataMap[symbol]; exists && marketData != nil {
-			// 使用真实斐波那契分析数据
-			fibData, err := market.CalculateFibonacciAnalysis(symbol)
-			if err == nil && fibData != nil {
-				globalFibonacci[symbol] = map[string]interface{}{
-					"swing_high":           fibData.SwingHigh,
-					"swing_low":            fibData.SwingLow,
-					"levels":               fibData.Levels,
-					"current_price_vs_fib": fibData.CurrentPriceVsFib,
-				}
-			} else {
-				// 如果斐波那契分析失败，使用基于当前价格的估算
-				swingHigh := marketData.CurrentPrice * 1.15
-				swingLow := marketData.CurrentPrice * 0.85
-				diff := swingHigh - swingLow
-				globalFibonacci[symbol] = map[string]interface{}{
-					"swing_high": swingHigh,
-					"swing_low":  swingLow,
-					"levels": map[string]float64{
-						"23.6%": swingHigh - diff*0.236,
-						"38.2%": swingHigh - diff*0.382,
-						"50.0%": swingHigh - diff*0.500,
-						"61.8%": swingHigh - diff*0.618,
-						"70.5%": swingHigh - diff*0.705,
-						"78.6%": swingHigh - diff*0.786,
-					},
-					"current_price_vs_fib": "在OTE区间内",
-				}
-			}
-		}
-	}
-	promptData["fibonacci_levels"] = globalFibonacci
 
 	// 将数据转换为JSON字符串
 	jsonData, err := json.MarshalIndent(promptData, "", "  ")

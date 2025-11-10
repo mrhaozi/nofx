@@ -31,7 +31,20 @@ type FuturesTrader struct {
 
 // NewFuturesTrader 创建合约交易器
 func NewFuturesTrader(apiKey, secretKey string) *FuturesTrader {
-	client := futures.NewClient(apiKey, secretKey)
+	return NewFuturesTraderWithProxy(apiKey, secretKey, "")
+}
+
+// NewFuturesTraderWithProxy 创建带代理的合约交易器
+func NewFuturesTraderWithProxy(apiKey, secretKey, proxyUrl string) *FuturesTrader {
+	var client *futures.Client
+	if proxyUrl != "" {
+		client = futures.NewProxiedClient(apiKey, secretKey, proxyUrl)
+		log.Printf("✓ 使用代理连接币安API: %s", proxyUrl)
+	} else {
+		client = futures.NewClient(apiKey, secretKey)
+		log.Printf("✓ 使用直连连接币安API")
+	}
+
 	return &FuturesTrader{
 		client:        client,
 		cacheDuration: 15 * time.Second, // 15秒缓存
