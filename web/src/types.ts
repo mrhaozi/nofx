@@ -135,6 +135,7 @@ export interface CreateTraderRequest {
   is_cross_margin?: boolean;
   use_coin_pool?: boolean;
   use_oi_top?: boolean;
+  binance_proxy_url?: string; // 币安代理URL，如"http://proxy.example.com:8080"
 }
 
 export interface UpdateModelConfigRequest {
@@ -198,7 +199,47 @@ export interface TraderConfigData {
   is_cross_margin: boolean;
   use_coin_pool: boolean;
   use_oi_top: boolean;
+  binance_proxy_url: string; // 币安代理URL，如"http://proxy.example.com:8080"
+  system_prompt_template: string; // 系统提示词模板
   initial_balance: number;
   scan_interval_minutes: number;
   is_running: boolean;
+}
+
+// UserPrompt测试相关类型
+export interface UserPromptData {
+  symbol: string;
+  userPrompt: string;
+  marketData: {
+    currentPrice: number;
+    volume: number;
+    priceChange1h: number;
+    priceChange4h: number;
+    indicators: {
+      macd: number;
+      ema20: number;
+      rsi7: number;
+    };
+  };
+  timestamp: string;
+}
+
+export interface AIDecisionData {
+  symbol: string;
+  decision: string;
+  confidence: number;
+  reasoning: string;
+  parameters: {
+    leverage: number;
+    positionSizeUSD: number;
+    stopLoss: number;
+    takeProfit: number;
+    riskUSD: number;
+  };
+  systemPrompt: string;
+  userPrompt: string;
+  aiResponse: string;
+  cotTrace: string;
+  timestamp: string;
+  responseTime: number;
 }

@@ -438,6 +438,554 @@ func Normalize(symbol string) string {
 	return symbol + "USDT"
 }
 
+// CalculateFibonacciAnalysis 计算斐波那契分析所需波段数据
+func CalculateFibonacciAnalysis(symbol string) (*FibonacciData, error) {
+	// 获取4小时K线数据用于波段分析
+	klines4h, err := WSMonitorCli.GetCurrentKlines(symbol, "4h")
+	if err != nil {
+		return nil, fmt.Errorf("获取4小时K线失败: %v", err)
+	}
+
+	if len(klines4h) < 30 { // 至少需要30根K线进行可靠的波段分析
+		return nil, fmt.Errorf("K线数据不足，需要至少30根4小时K线")
+	}
+
+	// 识别波段高低点
+	swingHigh, swingLow := identifySwingPoints(klines4h)
+
+	// 计算当前价格
+	currentPrice := klines4h[len(klines4h)-1].Close
+
+	// 计算斐波那契回撤位
+	levels := calculateFibonacciLevels(swingHigh, swingLow)
+
+	// 判断当前价格位置
+	currentPriceVsFib := analyzePricePosition(currentPrice, levels)
+
+	return &FibonacciData{
+		SwingHigh:         swingHigh,
+		SwingLow:          swingLow,
+		Levels:            levels,
+		CurrentPriceVsFib: currentPriceVsFib,
+	}, nil
+}
+
+// identifySwingPoints 识别波段高低点
+func identifySwingPoints(klines []Kline) (float64, float64) {
+	if len(klines) < 10 {
+		return 0, 0
+	}
+
+	// 使用最近20根K线来识别波段高低点
+	recentKlines := klines[len(klines)-20:]
+
+	swingHigh := 0.0
+	swingLow := 999999999.0
+
+	// 寻找最高点作为波段高点
+	for _, kline := range recentKlines {
+		if kline.High > swingHigh {
+			swingHigh = kline.High
+		}
+		if kline.Low < swingLow {
+			swingLow = kline.Low
+		}
+	}
+
+	return swingHigh, swingLow
+}
+
+// calculateFibonacciLevels 计算斐波那契回撤位
+func calculateFibonacciLevels(swingHigh, swingLow float64) map[string]float64 {
+	levels := make(map[string]float64)
+
+	if swingHigh <= swingLow {
+		return levels
+	}
+
+	diff := swingHigh - swingLow
+
+	// 标准斐波那契回撤位
+	fibRatios := map[string]float64{
+		"23.6": 0.236,
+		"38.2": 0.382,
+		"50.0": 0.500,
+		"61.8": 0.618,
+		"70.5": 0.705,
+		"78.6": 0.786,
+	}
+
+	for level, ratio := range fibRatios {
+		levels[level] = swingHigh - (diff * ratio)
+	}
+
+	return levels
+}
+
+// analyzePricePosition 分析当前价格相对于斐波那契区间的位置
+func analyzePricePosition(currentPrice float64, levels map[string]float64) string {
+	if len(levels) == 0 {
+		return "数据不足"
+	}
+
+	// 获取关键水平
+	oteLower := levels["61.8"] // OTE下限
+	oteUpper := levels["70.5"] // OTE上限
+
+	if oteLower == 0 || oteUpper == 0 {
+		return "数据不足"
+	}
+
+	// 判断当前价格位置
+	if currentPrice >= oteLower && currentPrice <= oteUpper {
+		return "在OTE区间内"
+	} else if currentPrice > oteUpper {
+		return "在OTE区间上方"
+	} else if currentPrice < oteLower {
+		return "在OTE区间下方"
+	}
+
+	// 更详细的分析
+	if currentPrice >= levels["38.2"] && currentPrice <= levels["61.8"] {
+		return "在斐波那契回撤区间内"
+	} else if currentPrice > levels["23.6"] {
+		return "在强势区域"
+	} else if currentPrice < levels["78.6"] {
+		return "在弱势区域"
+	}
+
+	return "在标准区域"
+}
+
+// IdentifyWyckoffSignals 识别维科夫信号
+func IdentifyWyckoffSignals(symbol string) (*WyckoffSignalData, error) {
+	// 获取4小时K线数据用于维科夫分析
+	klines4h, err := WSMonitorCli.GetCurrentKlines(symbol, "4h")
+	if err != nil {
+		return nil, fmt.Errorf("获取4小时K线失败: %v", err)
+	}
+
+	if len(klines4h) < 20 { // 至少需要20根K线进行维科夫分析
+		return nil, fmt.Errorf("K线数据不足，需要至少20根4小时K线")
+	}
+
+	// 识别市场阶段
+	phase := identifyMarketPhase(klines4h)
+
+	// 检测维科夫信号
+	signals := detectWyckoffSignals(klines4h)
+
+	// 分析成交量模式
+	volumePattern := analyzeVolumePattern(klines4h)
+
+	// 识别价格行为
+	priceAction := identifyPriceAction(klines4h)
+
+	return &WyckoffSignalData{
+		Phase:          phase,
+		SignalsPresent: signals,
+		VolumePattern:  volumePattern,
+		PriceAction:    priceAction,
+	}, nil
+}
+
+// identifyMarketPhase 识别市场阶段
+func identifyMarketPhase(klines []Kline) string {
+	if len(klines) < 10 {
+		return "consolidation"
+	}
+
+	// 获取最近的价格数据
+	recentKlines := klines[len(klines)-10:]
+	currentPrice := recentKlines[len(recentKlines)-1].Close
+
+	// 计算价格变化趋势
+	priceChanges := make([]float64, len(recentKlines)-1)
+	for i := 1; i < len(recentKlines); i++ {
+		change := (recentKlines[i].Close - recentKlines[i-1].Close) / recentKlines[i-1].Close * 100
+		priceChanges[i-1] = change
+	}
+
+	// 计算平均价格变化
+	avgChange := 0.0
+	for _, change := range priceChanges {
+		avgChange += change
+	}
+	avgChange = avgChange / float64(len(priceChanges))
+
+	// 计算价格波动率
+	volatility := calculateVolatility(recentKlines)
+
+	// 识别阶段
+	if volatility < 2.0 && math.Abs(avgChange) < 1.0 {
+		// 低波动率，价格在一定范围内震荡
+		return "consolidation"
+	} else if avgChange > 2.0 {
+		// 明显的上升趋势
+		return "uptrend"
+	} else if avgChange < -2.0 {
+		// 明显的下降趋势
+		return "downtrend"
+	}
+
+	// 进一步分析积累/分布阶段
+	high := 0.0
+	low := 999999999.0
+	totalVolume := 0.0
+	for _, kline := range recentKlines {
+		if kline.High > high {
+			high = kline.High
+		}
+		if kline.Low < low {
+			low = kline.Low
+		}
+		totalVolume += kline.Volume
+	}
+	avgVolume := totalVolume / float64(len(recentKlines))
+
+	// 计算价格位置（在区间中的位置）
+	priceRange := high - low
+	if priceRange <= 0 {
+		return "consolidation"
+	}
+	positionInRange := (currentPrice - low) / priceRange
+
+	// 基于位置判断积累或分布
+	if positionInRange < 0.3 && avgVolume > 0 {
+		// 价格区间低位，可能是积累阶段
+		return "accumulation"
+	} else if positionInRange > 0.7 && avgVolume > 0 {
+		// 价格区间高位，可能是分布阶段
+		return "distribution"
+	}
+
+	return "consolidation"
+}
+
+// detectWyckoffSignals 检测维科夫信号
+func detectWyckoffSignals(klines []Kline) []string {
+	signals := make([]string, 0)
+
+	if len(klines) < 5 {
+		return signals
+	}
+
+	// 获取最近几根K线进行分析
+	recentKlines := klines[len(klines)-5:]
+
+	// 检测Spring（假跌破）
+	if isSpringPattern(recentKlines) {
+		signals = append(signals, "Spring")
+	}
+
+	// 检测UTAD（假突破）
+	if isUTADPattern(recentKlines) {
+		signals = append(signals, "UTAD")
+	}
+
+	// 检测SOS（强势突破）
+	if isSOSPattern(recentKlines) {
+		signals = append(signals, "SOS")
+	}
+
+	// 检测SOW（弱势跌破）
+	if isSOWPattern(recentKlines) {
+		signals = append(signals, "SOW")
+	}
+
+	// 检测CLIMAX（高潮）
+	if isClimaxPattern(recentKlines) {
+		signals = append(signals, "CLIMAX")
+	}
+
+	// 检测TEST（测试关键位）
+	if isTestPattern(recentKlines) {
+		signals = append(signals, "TEST")
+	}
+
+	// 检测BREAKOUT（突破）
+	if isBreakoutPattern(recentKlines) {
+		signals = append(signals, "BREAKOUT")
+	}
+
+	// 检测BREAKDOWN（跌破）
+	if isBreakdownPattern(recentKlines) {
+		signals = append(signals, "BREAKDOWN")
+	}
+
+	return signals
+}
+
+// 维科夫信号检测辅助函数
+func isSpringPattern(klines []Kline) bool {
+	if len(klines) < 3 {
+		return false
+	}
+
+	// Spring模式：价格短暂跌破支撑位后快速反弹
+	current := klines[len(klines)-1]
+	previous := klines[len(klines)-2]
+
+	// 检查是否出现下影线较长的K线，且收盘价回到支撑位上方
+	lowerShadow := previous.Close - previous.Low
+	body := math.Abs(previous.Close - previous.Open)
+
+	if lowerShadow > body*2 && current.Close > previous.Close {
+		return true
+	}
+
+	return false
+}
+
+func isUTADPattern(klines []Kline) bool {
+	if len(klines) < 3 {
+		return false
+	}
+
+	// UTAD模式：价格短暂突破阻力位后快速回落
+	current := klines[len(klines)-1]
+	previous := klines[len(klines)-2]
+
+	// 检查是否出现上影线较长的K线，且收盘价回到阻力位下方
+	upperShadow := previous.High - previous.Close
+	body := math.Abs(previous.Close - previous.Open)
+
+	if upperShadow > body*2 && current.Close < previous.Close {
+		return true
+	}
+
+	return false
+}
+
+func isSOSPattern(klines []Kline) bool {
+	if len(klines) < 2 {
+		return false
+	}
+
+	// SOS模式：强势突破，伴随着成交量放大
+	current := klines[len(klines)-1]
+
+	// 检查是否出现大阳线突破
+	if current.Close > current.Open &&
+		(current.Close-current.Open) > (current.High-current.Low)*0.6 {
+		return true
+	}
+
+	return false
+}
+
+func isSOWPattern(klines []Kline) bool {
+	if len(klines) < 2 {
+		return false
+	}
+
+	// SOW模式：弱势跌破，伴随着成交量放大
+	current := klines[len(klines)-1]
+
+	// 检查是否出现大阴线跌破
+	if current.Close < current.Open &&
+		(current.Open-current.Close) > (current.High-current.Low)*0.6 {
+		return true
+	}
+
+	return false
+}
+
+func isClimaxPattern(klines []Kline) bool {
+	if len(klines) < 3 {
+		return false
+	}
+
+	// CLIMAX模式：高潮，价格剧烈波动伴随巨量
+	current := klines[len(klines)-1]
+	volatility := (current.High - current.Low) / current.Open * 100
+
+	// 检查是否出现极端波动（波动率超过5%）
+	if volatility > 5.0 {
+		return true
+	}
+
+	return false
+}
+
+func isTestPattern(klines []Kline) bool {
+	if len(klines) < 2 {
+		return false
+	}
+
+	// TEST模式：测试关键支撑/阻力位
+	current := klines[len(klines)-1]
+
+	// 检查是否出现小实体K线，表示测试关键位
+	body := math.Abs(current.Close - current.Open)
+	totalRange := current.High - current.Low
+
+	if totalRange > 0 && body/totalRange < 0.3 {
+		return true
+	}
+
+	return false
+}
+
+func isBreakoutPattern(klines []Kline) bool {
+	if len(klines) < 3 {
+		return false
+	}
+
+	// BREAKOUT模式：突破前期高点
+	current := klines[len(klines)-1]
+	previousHigh := 0.0
+
+	for i := 0; i < len(klines)-1; i++ {
+		if klines[i].High > previousHigh {
+			previousHigh = klines[i].High
+		}
+	}
+
+	// 检查当前K线是否突破前期高点
+	if current.Close > previousHigh {
+		return true
+	}
+
+	return false
+}
+
+func isBreakdownPattern(klines []Kline) bool {
+	if len(klines) < 3 {
+		return false
+	}
+
+	// BREAKDOWN模式：跌破前期低点
+	current := klines[len(klines)-1]
+	previousLow := klines[0].Low
+
+	for i := 1; i < len(klines)-1; i++ {
+		if klines[i].Low < previousLow {
+			previousLow = klines[i].Low
+		}
+	}
+
+	// 检查当前K线是否跌破前期低点
+	if current.Close < previousLow {
+		return true
+	}
+
+	return false
+}
+
+// analyzeVolumePattern 分析成交量模式
+func analyzeVolumePattern(klines []Kline) string {
+	if len(klines) < 5 {
+		return "normal_volume"
+	}
+
+	// 获取最近几根K线
+	recentKlines := klines[len(klines)-5:]
+
+	// 计算平均成交量
+	avgVolume := 0.0
+	for _, kline := range recentKlines {
+		avgVolume += kline.Volume
+	}
+	avgVolume = avgVolume / float64(len(recentKlines))
+
+	// 获取历史平均成交量（更长期）
+	historicalAvgVolume := 0.0
+	start := len(klines) - 20
+	if start < 0 {
+		start = 0
+	}
+
+	historicalKlines := klines[start : len(klines)-5]
+	if len(historicalKlines) > 0 {
+		for _, kline := range historicalKlines {
+			historicalAvgVolume += kline.Volume
+		}
+		historicalAvgVolume = historicalAvgVolume / float64(len(historicalKlines))
+	}
+
+	// 分析当前成交量
+	currentVolume := recentKlines[len(recentKlines)-1].Volume
+
+	if historicalAvgVolume > 0 {
+		volumeRatio := currentVolume / historicalAvgVolume
+
+		if volumeRatio > 2.0 {
+			return "high_volume"
+		} else if volumeRatio < 0.5 {
+			return "low_volume"
+		}
+	}
+
+	// 检查量价背离
+	priceChange := (recentKlines[len(recentKlines)-1].Close - recentKlines[0].Open) / recentKlines[0].Open * 100
+	volumeChange := (currentVolume - avgVolume) / avgVolume * 100
+
+	if math.Abs(priceChange) > 2.0 && math.Abs(volumeChange) < 1.0 {
+		return "divergence"
+	}
+
+	return "normal_volume"
+}
+
+// identifyPriceAction 识别价格行为
+func identifyPriceAction(klines []Kline) string {
+	if len(klines) < 3 {
+		return "consolidation"
+	}
+
+	// 获取最近几根K线
+	recentKlines := klines[len(klines)-3:]
+
+	// 计算价格变化
+	totalChange := (recentKlines[len(recentKlines)-1].Close - recentKlines[0].Open) / recentKlines[0].Open * 100
+
+	// 计算波动率
+	volatility := calculateVolatility(recentKlines)
+
+	if math.Abs(totalChange) > 3.0 {
+		if totalChange > 0 {
+			return "breakout"
+		} else {
+			return "breakdown"
+		}
+	}
+
+	if volatility > 2.0 {
+		return "false_move"
+	}
+
+	if volatility < 1.0 {
+		return "consolidation"
+	}
+
+	return "trending"
+}
+
+// calculateVolatility 计算波动率
+func calculateVolatility(klines []Kline) float64 {
+	if len(klines) < 2 {
+		return 0
+	}
+
+	// 计算平均真实波幅
+	sum := 0.0
+	for i := 1; i < len(klines); i++ {
+		high := klines[i].High
+		low := klines[i].Low
+		prevClose := klines[i-1].Close
+
+		tr1 := high - low
+		tr2 := math.Abs(high - prevClose)
+		tr3 := math.Abs(low - prevClose)
+
+		tr := math.Max(tr1, math.Max(tr2, tr3))
+		sum += tr / prevClose * 100 // 转换为百分比
+	}
+
+	return sum / float64(len(klines)-1)
+}
+
 // parseFloat 解析float值
 func parseFloat(v interface{}) (float64, error) {
 	switch val := v.(type) {

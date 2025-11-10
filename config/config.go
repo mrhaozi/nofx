@@ -20,6 +20,7 @@ type TraderConfig struct {
 	// 币安配置
 	BinanceAPIKey    string `json:"binance_api_key,omitempty"`
 	BinanceSecretKey string `json:"binance_secret_key,omitempty"`
+	BinanceProxyURL  string `json:"binance_proxy_url,omitempty"` // 代理URL，如"http://proxy.example.com:8080"
 
 	// Hyperliquid配置
 	HyperliquidPrivateKey string `json:"hyperliquid_private_key,omitempty"`

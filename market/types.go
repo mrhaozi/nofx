@@ -88,6 +88,22 @@ type Ticker24hr struct {
 	QuoteVolume        string `json:"quoteVolume"`
 }
 
+// 斐波那契分析数据
+type FibonacciData struct {
+	SwingHigh         float64            `json:"swing_high"`
+	SwingLow          float64            `json:"swing_low"`
+	Levels            map[string]float64 `json:"levels"`
+	CurrentPriceVsFib string             `json:"current_price_vs_fib"`
+}
+
+// 维科夫信号识别数据
+type WyckoffSignalData struct {
+	Phase          string   `json:"phase"`
+	SignalsPresent []string `json:"signals_present"`
+	VolumePattern  string   `json:"volume_pattern"`
+	PriceAction    string   `json:"price_action"`
+}
+
 // 特征数据结构
 type SymbolFeatures struct {
 	Symbol           string    `json:"symbol"`
